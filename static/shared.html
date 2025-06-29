@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendrier Partagé</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <meta name="theme-color" content="#3174ad">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <h1 class="logo">📅 Calendrier Partagé</h1>
+            <div class="shared-info">
+                <span id="shared-owner"></span>
+                <span id="shared-period"></span>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div id="shared-calendar-container" class="calendar-container">
+                <div class="shared-calendar-grid" id="shared-calendar-grid">
+                    <div class="day-header">Lun</div>
+                    <div class="day-header">Mar</div>
+                    <div class="day-header">Mer</div>
+                    <div class="day-header">Jeu</div>
+                    <div class="day-header">Ven</div>
+                    <div class="day-header">Sam</div>
+                    <div class="day-header">Dim</div>
+                </div>
+            </div>
+            
+            <div id="shared-events-list" class="shared-events-list">
+                <h3>Événements de la période</h3>
+                <div id="events-list-content"></div>
+            </div>
+        </div>
+    </main>
+
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <div id="error-message" class="error-message hidden">
+        <h2>Lien invalide ou expiré</h2>
+        <p>Ce lien de partage n'est plus valide ou a expiré.</p>
+    </div>
+
+    <script>
+        // Extraire le token depuis l'URL
+        const pathParts = window.location.pathname.split('/');
+        const shareToken = pathParts[pathParts.length - 1];
+
+        async function loadSharedCalendar() {
+            try {
+                const response = await fetch(`/api/shared/${shareToken}`);
+                
+                if (!response.ok) {
+                    throw new Error('Lien invalide');
+                }
+                
+                const data = await response.json();
+                
+                // Afficher les informations
+                document.getElementById('shared-owner').textContent = `Calendrier de ${data.owner}`;
+                document.getElementById('shared-period').textContent = 
+                    `Du ${new Date(data.start_date).toLocaleDateString('fr-FR')} au ${new Date(data.end_date).toLocaleDateString('fr-FR')}`;
+                
+                // Rendre le calendrier
+                renderSharedCalendar(data.events, data.start_date, data.end_date);
+                renderEventsList(data.events);
+                
+                document.getElementById('loading').classList.add('hidden');
+                
+            } catch (error) {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('error-message').classList.remove('hidden');
+                document.getElementById('shared-calendar-container').classList.add('hidden');
+            }
+        }
+
+        function renderSharedCalendar(events, startDate, endDate) {
+            const grid = document.getElementById('shared-calendar-grid');
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            
+            // Calculer le début et la fin de la grille (semaines complètes)
+            const gridStart = new Date(start);
+            const dayOfWeek = (start.getDay() + 6) % 7; // Lundi = 0
+            gridStart.setDate(start.getDate() - dayOfWeek);
+            
+            // Supprimer les jours existants
+            const existingDays = grid.querySelectorAll('.shared-calendar-day');
+            existingDays.forEach(day => day.remove());
+            
+            // Calculer le nombre de semaines nécessaires
+            const totalDays = Math.ceil((end - gridStart) / (1000 * 60 * 60 * 24)) + 7;
+            const weeksNeeded = Math.ceil(totalDays / 7);
+            
+            // Générer les jours
+            for (let i = 0; i < weeksNeeded * 7; i++) {
+                const date = new Date(gridStart);
+                date.setDate(gridStart.getDate() + i);
+                
+                const dayElement = document.createElement('div');
+                dayElement.className = 'shared-calendar-day';
+                
+                if (date < start || date > end) {
+                    dayElement.classList.add('outside-period');
+                }
+                
+                // Numéro du jour
+                const dayNumber = document.createElement('div');
+                dayNumber.className = 'day-number';
+                dayNumber.textContent = date.getDate();
+                dayElement.appendChild(dayNumber);
+                
+                // Événements du jour
+                const dayEvents = events.filter(event => {
+                    const eventDate = new Date(event.start_datetime);
+                    return eventDate.toDateString() === date.toDateString();
+                });
+                
+                const eventsContainer = document.createElement('div');
+                eventsContainer.className = 'day-events';
+                
+                dayEvents.forEach(event => {
+                    const eventElement = document.createElement('div');
+                    eventElement.className = 'event-item';
+                    eventElement.style.backgroundColor = event.color;
+                    eventElement.textContent = event.title;
+                    eventsContainer.appendChild(eventElement);
+                });
+                
+                dayElement.appendChild(eventsContainer);
+                grid.appendChild(dayElement);
+            }
+        }
+
+        function renderEventsList(events) {
+            const container = document.getElementById('events-list-content');
+            
+            if (events.length === 0) {
+                container.innerHTML = '<p>Aucun événement pendant cette période.</p>';
+                return;
+            }
+            
+            // Grouper par jour
+            const eventsByDay = events.reduce((acc, event) => {
+                const date = new Date(event.start_datetime).toDateString();
+                if (!acc[date]) acc[date] = [];
+                acc[date].push(event);
+                return acc;
+            }, {});
+            
+            container.innerHTML = '';
+            
+            Object.entries(eventsByDay)
+                .sort(([a], [b]) => new Date(a) - new Date(b))
+                .forEach(([dateStr, dayEvents]) => {
+                    const daySection = document.createElement('div');
+                    daySection.className = 'day-section';
+                    
+                    const dayHeader = document.createElement('h4');
+                    dayHeader.textContent = new Date(dateStr).toLocaleDateString('fr-FR', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    });
+                    daySection.appendChild(dayHeader);
+                    
+                    dayEvents.forEach(event => {
+                        const eventDiv = document.createElement('div');
+                        eventDiv.className = 'shared-event-item';
+                        
+                        const startTime = new Date(event.start_datetime).toLocaleTimeString('fr-FR', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                        const endTime = new Date(event.end_datetime).toLocaleTimeString('fr-FR', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                        
+                        eventDiv.innerHTML = `
+                            <div class="event-color" style="background-color: ${event.color}"></div>
+                            <div class="event-details">
+                                <div class="event-title">${event.title}</div>
+                                <div class="event-time">${event.is_all_day ? 'Toute la journée' : `${startTime} - ${endTime}`}</div>
+                                ${event.location ? `<div class="event-location">📍 ${event.location}</div>` : ''}
+                                ${event.description ? `<div class="event-description">${event.description}</div>` : ''}
+                            </div>
+                        `;
+                        
+                        daySection.appendChild(eventDiv);
+                    });
+                    
+                    container.appendChild(daySection);
+                });
+        }
+
+        // Charger le calendrier au chargement de la page
+        document.addEventListener('DOMContentLoaded', loadSharedCalendar);
+    </script>
+</body>
+</html>
