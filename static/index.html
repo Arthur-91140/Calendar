@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mon Calendrier</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#3174ad">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%233174ad'/%3E%3Ctext x='50' y='60' text-anchor='middle' fill='white' font-size='40' font-family='Arial'%3E📅%3C/text%3E%3C/svg%3E">
+    <!-- PWA pour desktop -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mon Calendrier">
+</head>
+<body>
+    <!-- Skip links for accessibility -->
+    <a href="#main-content" class="skip-link">Aller au contenu principal</a>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <h1 class="logo">📅 Mon Calendrier</h1>
+            <div class="header-actions">
+                <button id="settings-btn" class="btn btn-outline hidden" aria-label="Ouvrir les paramètres">
+                    ⚙️ Paramètres
+                </button>
+                <div class="auth-section">
+                    <div id="auth-buttons" class="auth-buttons">
+                        <button id="login-btn" class="btn btn-outline">Connexion</button>
+                        <button id="register-btn" class="btn btn-primary">Inscription</button>
+                    </div>
+                    <div id="user-section" class="user-section hidden">
+                        <span id="username-display"></span>
+                        <button id="logout-btn" class="btn btn-outline">Déconnexion</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="main-content" class="main">
+        <div class="container">
+            <!-- Auth Modal -->
+            <div id="auth-modal" class="modal hidden" role="dialog" aria-labelledby="auth-modal-title" aria-hidden="true">
+                <div class="modal-content">
+                    <button class="close" id="close-modal" aria-label="Fermer">&times;</button>
+                    <div id="login-form" class="auth-form">
+                        <h2 id="auth-modal-title">Connexion</h2>
+                        <form id="login-form-element">
+                            <div class="form-group">
+                                <label for="login-username">Nom d'utilisateur</label>
+                                <input type="text" id="login-username" required aria-describedby="login-username-help">
+                                <small id="login-username-help">Votre nom d'utilisateur</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="login-password">Mot de passe</label>
+                                <input type="password" id="login-password" required aria-describedby="login-password-help">
+                                <small id="login-password-help">Votre mot de passe</small>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Se connecter</button>
+                        </form>
+                        <p>Pas de compte ? <a href="#" id="switch-to-register">S'inscrire</a></p>
+                    </div>
+                    <div id="register-form" class="auth-form hidden">
+                        <h2>Inscription</h2>
+                        <form id="register-form-element">
+                            <div class="form-group">
+                                <label for="register-username">Nom d'utilisateur</label>
+                                <input type="text" id="register-username" required aria-describedby="register-username-help">
+                                <small id="register-username-help">Choisissez un nom d'utilisateur unique</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="register-email">Email</label>
+                                <input type="email" id="register-email" required aria-describedby="register-email-help">
+                                <small id="register-email-help">Votre adresse email pour les notifications</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="register-password">Mot de passe</label>
+                                <input type="password" id="register-password" required aria-describedby="register-password-help">
+                                <small id="register-password-help">Minimum 6 caractères</small>
+                            </div>
+                            <button type="submit" class="btn btn-primary">S'inscrire</button>
+                        </form>
+                        <p>Déjà un compte ? <a href="#" id="switch-to-login">Se connecter</a></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Modal -->
+            <div id="settings-modal" class="modal hidden" role="dialog" aria-labelledby="settings-modal-title" aria-hidden="true">
+                <div class="modal-content large">
+                    <button class="close" id="close-settings-modal" aria-label="Fermer">&times;</button>
+                    <h2 id="settings-modal-title">Paramètres</h2>
+                    <div class="settings-tabs" role="tablist">
+                        <button class="tab-btn active" data-tab="locations" role="tab" aria-selected="true" aria-controls="locations-tab">
+                            Lieux favoris
+                        </button>
+                        <button class="tab-btn" data-tab="notifications" role="tab" aria-selected="false" aria-controls="notifications-tab">
+                            Notifications
+                        </button>
+                        <button class="tab-btn" data-tab="sharing" role="tab" aria-selected="false" aria-controls="sharing-tab">
+                            Partage
+                        </button>
+                    </div>
+                    
+                    <!-- Tab Lieux favoris -->
+                    <div id="locations-tab" class="tab-content active" role="tabpanel" aria-labelledby="locations-tab-btn">
+                        <h3>Gérer vos lieux favoris</h3>
+                        <form id="location-form" class="mb-4">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="location-name">Nom du lieu</label>
+                                    <input type="text" id="location-name" required placeholder="Ex: Bureau, Maison...">
+                                </div>
+                                <div class="form-group">
+                                    <label for="location-address">Adresse (optionnel)</label>
+                                    <input type="text" id="location-address" placeholder="123 Rue Example, Paris">
+                                </div>
+                                <div class="form-group">
+                                    <button type="submit" class="btn btn-primary">Ajouter</button>
+                                </div>
+                            </div>
+                        </form>
+                        <div id="locations-list" class="locations-list" role="list">
+                            <!-- Les lieux seront chargés ici -->
+                        </div>
+                    </div>
+                    
+                    <!-- Tab Notifications -->
+                    <div id="notifications-tab" class="tab-content" role="tabpanel" aria-labelledby="notifications-tab-btn">
+                        <h3>Paramètres de notifications</h3>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="email-notifications-enabled">
+                                Activer les notifications par email
+                            </label>
+                            <small>Recevez des rappels par email pour vos événements</small>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="push-notifications-enabled">
+                                Activer les notifications push
+                            </label>
+                            <small>Recevez des notifications dans votre navigateur</small>
+                        </div>
+                        <button id="save-notification-settings" class="btn btn-primary">Enregistrer</button>
+                    </div>
+                    
+                    <!-- Tab Partage -->
+                    <div id="sharing-tab" class="tab-content" role="tabpanel" aria-labelledby="sharing-tab-btn">
+                        <h3>Partager votre calendrier</h3>
+                        <p>Créez un lien pour partager une période de votre calendrier avec d'autres personnes.</p>
+                        <form id="share-form">
+                            <div class="form-group">
+                                <label for="share-start-date">Date de début</label>
+                                <input type="date" id="share-start-date" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="share-duration">Durée</label>
+                                <select id="share-duration">
+                                    <option value="1">1 jour</option>
+                                    <option value="7" selected>1 semaine</option>
+                                    <option value="14">2 semaines</option>
+                                    <option value="30">1 mois</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="share-anonymize">
+                                    Anonymiser les événements
+                                </label>
+                                <small>Les titres seront remplacés par "Occupé"</small>
+                            </div>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="share-include-details" checked>
+                                    Inclure les détails
+                                </label>
+                                <small>Afficher les descriptions et lieux</small>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Créer le lien de partage</button>
+                        </form>
+                        <div id="share-result" class="share-result hidden">
+                            <h4>Lien de partage créé :</h4>
+                            <div class="share-link-container">
+                                <input type="text" id="share-link" readonly aria-label="Lien de partage">
+                                <button id="copy-share-link" class="btn btn-outline">Copier</button>
+                            </div>
+                            <small>Ce lien expire automatiquement après 30 jours</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calendar Controls -->
+            <div id="calendar-controls" class="calendar-controls hidden">
+                <div class="controls-row">
+                    <div class="nav-controls">
+                        <button id="prev-period" class="btn btn-outline" aria-label="Période précédente">‹</button>
+                        <h2 id="current-period" aria-live="polite"></h2>
+                        <button id="next-period" class="btn btn-outline" aria-label="Période suivante">›</button>
+                    </div>
+                    <div class="view-controls">
+                        <div class="view-selector" role="radiogroup" aria-label="Sélection de la vue">
+                            <button id="day-view-btn" class="btn btn-outline view-btn" role="radio" aria-checked="false">
+                                Jour
+                            </button>
+                            <button id="week-view-btn" class="btn btn-outline view-btn" role="radio" aria-checked="false">
+                                Semaine
+                            </button>
+                            <button id="month-view-btn" class="btn btn-outline view-btn active" role="radio" aria-checked="true">
+                                Mois
+                            </button>
+                        </div>
+                        <button id="today-btn" class="btn btn-outline">Aujourd'hui</button>
+                        <button id="add-event-btn" class="btn btn-primary">+ Événement</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calendar Views -->
+            <div id="calendar-container" class="calendar-container hidden">
+                <!-- Vue Mois -->
+                <div id="month-view" class="calendar-view active" role="grid" aria-label="Vue mensuelle du calendrier">
+                    <div class="calendar-grid" id="month-grid">
+                        <div class="day-header" role="columnheader">Lun</div>
+                        <div class="day-header" role="columnheader">Mar</div>
+                        <div class="day-header" role="columnheader">Mer</div>
+                        <div class="day-header" role="columnheader">Jeu</div>
+                        <div class="day-header" role="columnheader">Ven</div>
+                        <div class="day-header" role="columnheader">Sam</div>
+                        <div class="day-header" role="columnheader">Dim</div>
+                    </div>
+                </div>
+
+                <!-- Vue Semaine -->
+                <div id="week-view" class="calendar-view" role="grid" aria-label="Vue hebdomadaire du calendrier">
+                    <div class="week-grid">
+                        <div class="time-column">
+                            <div class="time-slot time-header" role="columnheader">Heure</div>
+                            <!-- Les créneaux horaires seront générés ici -->
+                        </div>
+                        <div class="days-container" id="week-days">
+                            <!-- Les jours de la semaine seront générés ici -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vue Jour -->
+                <div id="day-view" class="calendar-view" role="grid" aria-label="Vue journalière du calendrier">
+                    <div class="day-grid">
+                        <div class="time-column">
+                            <div class="time-slot time-header" role="columnheader">Heure</div>
+                            <!-- Les créneaux horaires seront générés ici -->
+                        </div>
+                        <div class="day-column">
+                            <div class="day-header-single" id="day-header-single" role="columnheader"></div>
+                            <div class="day-content" id="day-content" role="gridcell">
+                                <!-- Les événements du jour seront affichés ici -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Event Modal Amélioré -->
+            <div id="event-modal" class="modal hidden" role="dialog" aria-labelledby="event-modal-title" aria-hidden="true">
+                <div class="modal-content large">
+                    <button class="close" id="close-event-modal" aria-label="Fermer">&times;</button>
+                    <h2 id="event-modal-title">Nouvel événement</h2>
+                    <form id="event-form">
+                        <input type="hidden" id="event-id">
+                        
+                        <!-- Informations de base -->
+                        <div class="form-section">
+                            <h3>Informations générales</h3>
+                            <div class="form-group">
+                                <label for="event-title">Titre *</label>
+                                <input type="text" id="event-title" required aria-describedby="event-title-help">
+                                <small id="event-title-help">Nom de votre événement</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="event-description">Description</label>
+                                <textarea id="event-description" rows="3" aria-describedby="event-description-help"></textarea>
+                                <small id="event-description-help">Détails de l'événement (optionnel)</small>
+                            </div>
+                        </div>
+
+                        <!-- Date et heure -->
+                        <div class="form-section">
+                            <h3>Date et heure</h3>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="event-all-day">
+                                    Toute la journée
+                                </label>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="event-start">Début *</label>
+                                    <input type="datetime-local" id="event-start" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="event-end">Fin *</label>
+                                    <input type="datetime-local" id="event-end" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Lieu -->
+                        <div class="form-section">
+                            <h3>Lieu</h3>
+                            <div class="form-group">
+                                <label for="event-location">Lieu</label>
+                                <input type="text" id="event-location" list="favorite-locations" aria-describedby="event-location-help">
+                                <datalist id="favorite-locations">
+                                    <!-- Les lieux favoris seront chargés ici -->
+                                </datalist>
+                                <small id="event-location-help">Tapez pour voir vos lieux favoris</small>
+                            </div>
+                        </div>
+
+                        <!-- Récurrence -->
+                        <div class="form-section">
+                            <h3>Récurrence</h3>
+                            <div class="form-group">
+                                <label for="recurrence-frequency">Répéter</label>
+                                <select id="recurrence-frequency">
+                                    <option value="never">Ne pas répéter</option>
+                                    <option value="daily">Tous les jours</option>
+                                    <option value="weekly">Toutes les semaines</option>
+                                    <option value="monthly">Tous les mois</option>
+                                    <option value="yearly">Tous les ans</option>
+                                    <option value="custom">Personnalisé...</option>
+                                </select>
+                            </div>
+                            
+                            <div id="recurrence-options" class="recurrence-options hidden">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="recurrence-interval">Intervalle</label>
+                                        <input type="number" id="recurrence-interval" min="1" value="1">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="recurrence-unit">Unité</label>
+                                        <select id="recurrence-unit">
+                                            <option value="days">jour(s)</option>
+                                            <option value="weeks">semaine(s)</option>
+                                            <option value="months">mois</option>
+                                            <option value="years">année(s)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div id="weekly-options" class="weekly-options hidden">
+                                    <label>Jours de la semaine :</label>
+                                    <div class="days-selector">
+                                        <label><input type="checkbox" value="0"> Lun</label>
+                                        <label><input type="checkbox" value="1"> Mar</label>
+                                        <label><input type="checkbox" value="2"> Mer</label>
+                                        <label><input type="checkbox" value="3"> Jeu</label>
+                                        <label><input type="checkbox" value="4"> Ven</label>
+                                        <label><input type="checkbox" value="5"> Sam</label>
+                                        <label><input type="checkbox" value="6"> Dim</label>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <fieldset>
+                                        <legend>Se termine :</legend>
+                                        <div class="end-options">
+                                            <label>
+                                                <input type="radio" name="recurrence-end" value="never" checked> 
+                                                Jamais
+                                            </label>
+                                            <label>
+                                                <input type="radio" name="recurrence-end" value="after"> 
+                                                Après 
+                                                <input type="number" id="recurrence-count" min="1" value="10"> 
+                                                occurrences
+                                            </label>
+                                            <label>
+                                                <input type="radio" name="recurrence-end" value="until"> 
+                                                Le 
+                                                <input type="date" id="recurrence-until">
+                                            </label>
+                                        </div>
+                                    </fieldset>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Notifications -->
+                        <div class="form-section">
+                            <h3>Notifications</h3>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="notification-email">
+                                    Notification par email
+                                </label>
+                                <select id="email-timing" class="notification-timing hidden">
+                                    <option value="5">5 minutes avant</option>
+                                    <option value="15" selected>15 minutes avant</option>
+                                    <option value="30">30 minutes avant</option>
+                                    <option value="60">1 heure avant</option>
+                                    <option value="1440">1 jour avant</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="notification-push">
+                                    Notification push
+                                </label>
+                                <select id="push-timing" class="notification-timing hidden">
+                                    <option value="5">5 minutes avant</option>
+                                    <option value="15" selected>15 minutes avant</option>
+                                    <option value="30">30 minutes avant</option>
+                                    <option value="60">1 heure avant</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Autres options -->
+                        <div class="form-section">
+                            <h3>Autres options</h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="event-category">Catégorie</label>
+                                    <input type="text" id="event-category" list="categories">
+                                    <datalist id="categories">
+                                        <option value="Travail">
+                                        <option value="Personnel">
+                                        <option value="Famille">
+                                        <option value="Santé">
+                                        <option value="Sport">
+                                        <option value="Loisirs">
+                                        <option value="Réunion">
+                                        <option value="Rendez-vous">
+                                    </datalist>
+                                </div>
+                                <div class="form-group">
+                                    <label for="event-color">Couleur</label>
+                                    <input type="color" id="event-color" value="#3174ad">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" id="delete-event-btn" class="btn btn-danger hidden">Supprimer</button>
+                            <button type="submit" class="btn btn-primary">Enregistrer</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Loading Spinner -->
+    <div id="loading" class="loading hidden" role="status" aria-live="polite">
+        <div class="spinner"></div>
+        <span class="sr-only">Chargement en cours...</span>
+    </div>
+
+    <!-- Notifications -->
+    <div id="notifications" class="notifications" role="region" aria-live="polite" aria-label="Notifications"></div>
+
+    <!-- Install PWA Prompt -->
+    <div id="install-prompt" class="install-prompt hidden" role="dialog" aria-labelledby="install-title">
+        <div class="install-content">
+            <h3 id="install-title">📅 Installer Mon Calendrier</h3>
+            <p>Accédez rapidement à votre calendrier depuis votre bureau !</p>
+            <div class="install-actions">
+                <button id="install-btn" class="btn btn-primary">Installer</button>
+                <button id="dismiss-install" class="btn btn-outline">Plus tard</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Raccourcis clavier (aide) -->
+    <div id="keyboard-help" class="keyboard-help hidden" role="dialog" aria-labelledby="keyboard-help-title">
+        <div class="help-content">
+            <h3 id="keyboard-help-title">Raccourcis clavier</h3>
+            <ul>
+                <li><kbd>Ctrl</kbd> + <kbd>N</kbd> : Nouvel événement</li>
+                <li><kbd>Ctrl</kbd> + <kbd>1</kbd> : Vue jour</li>
+                <li><kbd>Ctrl</kbd> + <kbd>2</kbd> : Vue semaine</li>
+                <li><kbd>Ctrl</kbd> + <kbd>3</kbd> : Vue mois</li>
+                <li><kbd>Ctrl</kbd> + <kbd>T</kbd> : Aller à aujourd'hui</li>
+                <li><kbd>←</kbd> / <kbd>→</kbd> : Navigation</li>
+                <li><kbd>Échap</kbd> : Fermer les modales</li>
+            </ul>
+            <button class="btn btn-outline" onclick="document.getElementById('keyboard-help').classList.add('hidden')">
+                Fermer
+            </button>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+    <script>
+        // Service Worker pour PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/sw.js')
+                .then(registration => {
+                    console.log('Service Worker enregistré:', registration);
+                    
+                    // Vérifier les mises à jour
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                // Nouvelle version disponible
+                                if (confirm('Une nouvelle version est disponible. Recharger ?')) {
+                                    window.location.reload();
+                                }
+                            }
+                        });
+                    });
+                })
+                .catch(error => console.log('Erreur Service Worker:', error));
+        }
+
+        // Aide clavier (F1)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'F1') {
+                e.preventDefault();
+                document.getElementById('keyboard-help').classList.remove('hidden');
+            }
+        });
+
+        // Performance: Preload critical resources
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.href = '/static/app.js';
+        link.as = 'script';
+        document.head.appendChild(link);
+
+        // Analytics de performance (optionnel)
+        window.addEventListener('load', () => {
+            if ('performance' in window) {
+                const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
+                console.log(`Temps de chargement: ${loadTime}ms`);
+            }
+        });
+
+        // Gestion des erreurs globales
+        window.addEventListener('error', (e) => {
+            console.error('Erreur JavaScript:', e.error);
+            // Optionnel: Envoyer les erreurs à un service de monitoring
+        });
+
+        // Gestion du mode hors ligne
+        window.addEventListener('online', () => {
+            document.body.classList.remove('offline');
+            if (window.showNotification) {
+                showNotification('Connexion rétablie', 'success');
+            }
+        });
+
+        window.addEventListener('offline', () => {
+            document.body.classList.add('offline');
+            if (window.showNotification) {
+                showNotification('Mode hors ligne activé', 'warning');
+            }
+        });
+    </script>
+</body>
+</html>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <h1 class="logo">📅 Mon Calendrier</h1>
+            <div class="header-actions">
+                <button id="settings-btn" class="btn btn-outline hidden">⚙️ Paramètres</button>
+                <div class="auth-section">
+                    <div id="auth-buttons" class="auth-buttons">
+                        <button id="login-btn" class="btn btn-outline">Connexion</button>
+                        <button id="register-btn" class="btn btn-primary">Inscription</button>
+                    </div>
+                    <div id="user-section" class="user-section hidden">
+                        <span id="username-display"></span>
+                        <button id="logout-btn" class="btn btn-outline">Déconnexion</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="container">
+            <!-- Auth Modal -->
+            <div id="auth-modal" class="modal hidden">
+                <div class="modal-content">
+                    <span class="close" id="close-modal">&times;</span>
+                    <div id="login-form" class="auth-form">
+                        <h2>Connexion</h2>
+                        <form id="login-form-element">
+                            <input type="text" id="login-username" placeholder="Nom d'utilisateur" required>
+                            <input type="password" id="login-password" placeholder="Mot de passe" required>
+                            <button type="submit" class="btn btn-primary">S'inscrire</button>
+                        </form>
+                        <p>Déjà un compte ? <a href="#" id="switch-to-login">Se connecter</a></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Modal -->
+            <div id="settings-modal" class="modal hidden">
+                <div class="modal-content large">
+                    <span class="close" id="close-settings-modal">&times;</span>
+                    <h2>Paramètres</h2>
+                    <div class="settings-tabs">
+                        <button class="tab-btn active" data-tab="locations">Lieux favoris</button>
+                        <button class="tab-btn" data-tab="notifications">Notifications</button>
+                        <button class="tab-btn" data-tab="sharing">Partage</button>
+                    </div>
+                    
+                    <!-- Tab Lieux favoris -->
+                    <div id="locations-tab" class="tab-content active">
+                        <h3>Gérer vos lieux favoris</h3>
+                        <form id="location-form" class="mb-4">
+                            <div class="form-row">
+                                <input type="text" id="location-name" placeholder="Nom du lieu" required>
+                                <input type="text" id="location-address" placeholder="Adresse (optionnel)">
+                                <button type="submit" class="btn btn-primary">Ajouter</button>
+                            </div>
+                        </form>
+                        <div id="locations-list" class="locations-list">
+                            <!-- Les lieux seront chargés ici -->
+                        </div>
+                    </div>
+                    
+                    <!-- Tab Notifications -->
+                    <div id="notifications-tab" class="tab-content">
+                        <h3>Paramètres de notifications</h3>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="email-notifications-enabled">
+                                Activer les notifications par email
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="push-notifications-enabled">
+                                Activer les notifications push
+                            </label>
+                        </div>
+                        <button id="save-notification-settings" class="btn btn-primary">Enregistrer</button>
+                    </div>
+                    
+                    <!-- Tab Partage -->
+                    <div id="sharing-tab" class="tab-content">
+                        <h3>Partager votre calendrier</h3>
+                        <form id="share-form">
+                            <div class="form-group">
+                                <label for="share-start-date">Date de début</label>
+                                <input type="date" id="share-start-date" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="share-duration">Durée (jours)</label>
+                                <select id="share-duration">
+                                    <option value="1">1 jour</option>
+                                    <option value="7" selected>1 semaine</option>
+                                    <option value="14">2 semaines</option>
+                                    <option value="30">1 mois</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="share-anonymize">
+                                    Anonymiser les événements
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="share-include-details" checked>
+                                    Inclure les détails
+                                </label>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Créer le lien de partage</button>
+                        </form>
+                        <div id="share-result" class="share-result hidden">
+                            <h4>Lien de partage créé :</h4>
+                            <div class="share-link-container">
+                                <input type="text" id="share-link" readonly>
+                                <button id="copy-share-link" class="btn btn-outline">Copier</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calendar Controls -->
+            <div id="calendar-controls" class="calendar-controls hidden">
+                <div class="controls-row">
+                    <div class="nav-controls">
+                        <button id="prev-period" class="btn btn-outline">‹</button>
+                        <h2 id="current-period"></h2>
+                        <button id="next-period" class="btn btn-outline">›</button>
+                    </div>
+                    <div class="view-controls">
+                        <div class="view-selector">
+                            <button id="day-view-btn" class="btn btn-outline view-btn">Jour</button>
+                            <button id="week-view-btn" class="btn btn-outline view-btn">Semaine</button>
+                            <button id="month-view-btn" class="btn btn-outline view-btn active">Mois</button>
+                        </div>
+                        <button id="today-btn" class="btn btn-outline">Aujourd'hui</button>
+                        <button id="add-event-btn" class="btn btn-primary">+ Événement</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calendar Views -->
+            <div id="calendar-container" class="calendar-container hidden">
+                <!-- Vue Mois -->
+                <div id="month-view" class="calendar-view active">
+                    <div class="calendar-grid" id="month-grid">
+                        <div class="day-header">Lun</div>
+                        <div class="day-header">Mar</div>
+                        <div class="day-header">Mer</div>
+                        <div class="day-header">Jeu</div>
+                        <div class="day-header">Ven</div>
+                        <div class="day-header">Sam</div>
+                        <div class="day-header">Dim</div>
+                    </div>
+                </div>
+
+                <!-- Vue Semaine -->
+                <div id="week-view" class="calendar-view">
+                    <div class="week-grid">
+                        <div class="time-column">
+                            <div class="time-slot time-header"></div>
+                            <!-- Les créneaux horaires seront générés ici -->
+                        </div>
+                        <div class="days-container" id="week-days">
+                            <!-- Les jours de la semaine seront générés ici -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vue Jour -->
+                <div id="day-view" class="calendar-view">
+                    <div class="day-grid">
+                        <div class="time-column">
+                            <div class="time-slot time-header"></div>
+                            <!-- Les créneaux horaires seront générés ici -->
+                        </div>
+                        <div class="day-column" id="day-column">
+                            <div class="day-header-single" id="day-header-single"></div>
+                            <div class="day-content" id="day-content">
+                                <!-- Les événements du jour seront affichés ici -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Event Modal Amélioré -->
+            <div id="event-modal" class="modal hidden">
+                <div class="modal-content large">
+                    <span class="close" id="close-event-modal">&times;</span>
+                    <h2 id="event-modal-title">Nouvel événement</h2>
+                    <form id="event-form">
+                        <input type="hidden" id="event-id">
+                        
+                        <!-- Informations de base -->
+                        <div class="form-section">
+                            <h3>Informations générales</h3>
+                            <div class="form-group">
+                                <label for="event-title">Titre *</label>
+                                <input type="text" id="event-title" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="event-description">Description</label>
+                                <textarea id="event-description" rows="3"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Date et heure -->
+                        <div class="form-section">
+                            <h3>Date et heure</h3>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="event-all-day">
+                                    Toute la journée
+                                </label>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="event-start">Début *</label>
+                                    <input type="datetime-local" id="event-start" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="event-end">Fin *</label>
+                                    <input type="datetime-local" id="event-end" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Lieu -->
+                        <div class="form-section">
+                            <h3>Lieu</h3>
+                            <div class="form-group">
+                                <label for="event-location">Lieu</label>
+                                <input type="text" id="event-location" list="favorite-locations">
+                                <datalist id="favorite-locations">
+                                    <!-- Les lieux favoris seront chargés ici -->
+                                </datalist>
+                            </div>
+                        </div>
+
+                        <!-- Récurrence -->
+                        <div class="form-section">
+                            <h3>Récurrence</h3>
+                            <div class="form-group">
+                                <label for="recurrence-frequency">Répéter</label>
+                                <select id="recurrence-frequency">
+                                    <option value="never">Ne pas répéter</option>
+                                    <option value="daily">Tous les jours</option>
+                                    <option value="weekly">Toutes les semaines</option>
+                                    <option value="monthly">Tous les mois</option>
+                                    <option value="yearly">Tous les ans</option>
+                                    <option value="custom">Personnalisé...</option>
+                                </select>
+                            </div>
+                            
+                            <div id="recurrence-options" class="recurrence-options hidden">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="recurrence-interval">Intervalle</label>
+                                        <input type="number" id="recurrence-interval" min="1" value="1">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="recurrence-unit">Unité</label>
+                                        <select id="recurrence-unit">
+                                            <option value="days">jour(s)</option>
+                                            <option value="weeks">semaine(s)</option>
+                                            <option value="months">mois</option>
+                                            <option value="years">année(s)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div id="weekly-options" class="weekly-options hidden">
+                                    <label>Jours de la semaine :</label>
+                                    <div class="days-selector">
+                                        <label><input type="checkbox" value="0"> Lun</label>
+                                        <label><input type="checkbox" value="1"> Mar</label>
+                                        <label><input type="checkbox" value="2"> Mer</label>
+                                        <label><input type="checkbox" value="3"> Jeu</label>
+                                        <label><input type="checkbox" value="4"> Ven</label>
+                                        <label><input type="checkbox" value="5"> Sam</label>
+                                        <label><input type="checkbox" value="6"> Dim</label>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Se termine :</label>
+                                    <div class="end-options">
+                                        <label><input type="radio" name="recurrence-end" value="never" checked> Jamais</label>
+                                        <label><input type="radio" name="recurrence-end" value="after"> Après 
+                                            <input type="number" id="recurrence-count" min="1" value="10"> occurrences</label>
+                                        <label><input type="radio" name="recurrence-end" value="until"> Le 
+                                            <input type="date" id="recurrence-until"></label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Notifications -->
+                        <div class="form-section">
+                            <h3>Notifications</h3>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="notification-email">
+                                    Notification par email
+                                </label>
+                                <select id="email-timing" class="notification-timing hidden">
+                                    <option value="5">5 minutes avant</option>
+                                    <option value="15" selected>15 minutes avant</option>
+                                    <option value="30">30 minutes avant</option>
+                                    <option value="60">1 heure avant</option>
+                                    <option value="1440">1 jour avant</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="notification-push">
+                                    Notification push
+                                </label>
+                                <select id="push-timing" class="notification-timing hidden">
+                                    <option value="5">5 minutes avant</option>
+                                    <option value="15" selected>15 minutes avant</option>
+                                    <option value="30">30 minutes avant</option>
+                                    <option value="60">1 heure avant</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Autres options -->
+                        <div class="form-section">
+                            <h3>Autres options</h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="event-category">Catégorie</label>
+                                    <input type="text" id="event-category" list="categories">
+                                    <datalist id="categories">
+                                        <option value="Travail">
+                                        <option value="Personnel">
+                                        <option value="Famille">
+                                        <option value="Santé">
+                                        <option value="Sport">
+                                        <option value="Loisirs">
+                                    </datalist>
+                                </div>
+                                <div class="form-group">
+                                    <label for="event-color">Couleur</label>
+                                    <input type="color" id="event-color" value="#3174ad">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" id="delete-event-btn" class="btn btn-danger hidden">Supprimer</button>
+                            <button type="submit" class="btn btn-primary">Enregistrer</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Loading Spinner -->
+    <div id="loading" class="loading hidden">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Notifications -->
+    <div id="notifications" class="notifications"></div>
+
+    <!-- Install PWA Prompt -->
+    <div id="install-prompt" class="install-prompt hidden">
+        <div class="install-content">
+            <h3>📅 Installer Mon Calendrier</h3>
+            <p>Accédez rapidement à votre calendrier depuis votre bureau !</p>
+            <div class="install-actions">
+                <button id="install-btn" class="btn btn-primary">Installer</button>
+                <button id="dismiss-install" class="btn btn-outline">Plus tard</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+    <script>
+        // Service Worker pour PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/sw.js')
+                .then(registration => console.log('SW registered'))
+                .catch(error => console.log('SW registration failed'));
+        }
+    </script>
+</body>
+</html>
